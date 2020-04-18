@@ -1,0 +1,23 @@
+# misc
+config.py
+input/*
+output/*
+
+# logging 
+*.log
+
+# database
+*.db
+
+# text editor
+.vscode
+
+# virtual enviro
+__pycache__
+/bin/
+/include/
+/lib/
+pyvenv.cfg
+
+# project
+*.egg-info

@@ -2,22 +2,27 @@
 Splits csv file into mutile files for importing to WP TablePress
 """
 
+import logging
+
 # Standard library imports
 from pathlib import Path
 
 import csv
 from fuzzywuzzy import fuzz
 
+import json
+
 from zipfile import ZipFile 
 import os 
+
 #----------------------------------------------------------------------
 
 class TablePressHelper():
 	
-	DEBUG 			= True
+	DEBUG 			= False
 	SUFFIX			= "-Email-2020-04-18"
 
-	auto_ratio 		= 94
+	auto_ratio 		= 90
 	check_ratio 	= 90
 
 	def __init__(self):
@@ -28,7 +33,6 @@ class TablePressHelper():
 		if reponse == "y":
 			self.zip_files()
 
-		
 	def extract(self):
 		# Loop log files
 		for idx, file in enumerate( Path('input').glob('*.csv') ):
@@ -42,52 +46,66 @@ class TablePressHelper():
 				
 				# loop rows
 				for row in csv_reader:
-					if self.DEBUG and line_count < 1:
-						self.match_file( row )
-						line_count += 1
+					if self.DEBUG:
+						if line_count < 5:
+							self.match_file( row )	
 					else:
 						self.match_file( row )
+					line_count += 1
 
 	def match_file(self, row):
 		
 		list_name = list(row.values())[0].replace(",", "").replace(" &", "").replace(" ", "-")
 
-		for idx, file in enumerate( Path('output').glob('*.csv') ):
+		matched = False
+
+		for idx, file in enumerate( Path('output').glob('*.json') ):
 
 			file_name = file.stem
 			match_ratio = fuzz.ratio( file_name, list_name + self.SUFFIX )
-
+			
 			if  match_ratio >= self.auto_ratio:
-				self.write_file( file, row )	
+				self.update_json( file, row )	
+				matched = True
 			elif match_ratio >= self.check_ratio:
 				user_input = input( "{} confidence, that {} matches {}, Y or N?".format( match_ratio, file_name, list_name ))
 				reponse = user_input.lower()
 				if reponse == "y":
-					self.write_file( file, row )
+					self.update_json( file, row )
+					matched = True
 
+		if not matched:
+			logging.warning( 'No match found for: {}'.format( list_name) )
 			
-	def write_file(self, file, row):
-					
-		try:
-			with open( file, 'w') as output:
+	def update_json(self, file, row):
+		
+		new_data = [];
 
-				writer = csv.writer( output, delimiter="," )
+		for (k,v) in enumerate(row): 
+			if k == 0:
+				# first element
+				new_data.append( [ "Region", "Count" ] )
+			elif k == len(row) - 1:
+				# last element
+				new_data.append( [ "Total", "=SUM(B2:B10)" ] )
+			else:
+				# middle elements
+				key = list( row.values() )[k]
+				new_data.append( [ v, key ] )
 
-				for (k,v) in enumerate(row): 
-					
-					if k == 0:
-						# first element
-						writer.writerow( [ "Region", "Count" ] )
-					elif k == len(row) - 1:
-						# last element
-						writer.writerow( [ "Total", "=SUM(B2:B10)" ] )
-					else:
-						# middle elements
-						key = list( row.values() )[k]
-						writer.writerow( [ v, key ] )
+		# open / close to get context
+		with open(file, "r") as json_file:	
+			data = json.load(json_file)
+			json_file.close()
 
-		except IOError:
-			print( "I/O error: {}".format( file.stem ) )
+		# update data points
+		data["data"] = new_data
+
+		# save changes
+		with open(file, "w") as json_file:
+			json_file.write(json.dumps(data))
+			json_file.close()		
+
 	
 
 	def zip_files( self ):

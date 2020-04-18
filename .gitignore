@@ -1,16 +1,11 @@
-# misc
+# project
 config.py
 input/*
 output/*
+*.zip 
 
 # logging 
 *.log
-
-# database
-*.db
-
-# text editor
-.vscode
 
 # virtual enviro
 __pycache__
@@ -19,5 +14,6 @@ __pycache__
 /lib/
 pyvenv.cfg
 
-# project
-*.egg-info
+#misc
+*.DS_Store
+.vscode
